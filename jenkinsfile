@@ -1,0 +1,44 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_USER = "your-dockerhub-username"
+        DOCKER_HUB_PASS = credentials('dockerhub-credentials-id')
+        IMAGE_NAME = "zomato-node-app"
+        CONTAINER_NAME = "zomato-node-container"
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Chellurigayathridevi/zomato-.git'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh "docker build -t ${IMAGE_NAME}:latest ."
+            }
+        }
+
+        stage('Push to DockerHub') {
+            steps {
+                sh """
+                   echo ${DOCKER_HUB_PASS} | docker login -u ${DOCKER_HUB_USER} --password-stdin
+                   docker tag ${IMAGE_NAME}:latest ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest
+                   docker push ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest
+                """
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                sh """
+                   docker rm -f ${CONTAINER_NAME} || true
+                   docker run -d -p 8080:8080 --name ${CONTAINER_NAME} ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest
+                """
+            }
+        }
+    }
+}
+
